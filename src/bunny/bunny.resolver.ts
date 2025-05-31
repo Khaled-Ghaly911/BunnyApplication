@@ -1,67 +1,54 @@
-import { Resolver, Mutation, Args, Context } from '@nestjs/graphql';
-import { BadRequestException } from '@nestjs/common';
+import { Resolver, Mutation, Args, Query } from '@nestjs/graphql';
+import { FileUpload, GraphQLUpload } from 'graphql-upload-minimal';
 import { UploadService } from './bunny.service';
 import { Gallery } from './gallery.schema';
-import { GraphQLUpload, FileUpload } from 'graphql-upload-minimal';
-import { InputType, Field } from '@nestjs/graphql';
+import { InputType, Field, ID } from '@nestjs/graphql';
+import { Types } from 'mongoose';
 
 @InputType()
-class CreateCollectionInput {
-  @Field()
-  name: string;
-}
-
-@InputType()
-class UploadVideoInput {
-  @Field()
+export class UploadVideoInput {
+  @Field(() => String, { description: 'MongoDB ObjectId of the Gallery to attach the video to' })
   galleryId: string;
 
-  @Field()
-  collectionId: string;
-
-  @Field({ nullable: true })
+  @Field(() => String, {
+    nullable: true,
+    description: 'Optional custom title for the uploaded video (defaults to filename)',
+  })
   title?: string;
 }
 
 @Resolver(() => Gallery)
-export class UploadResolver {
+export class GalleryResolver {
   constructor(private readonly uploadService: UploadService) {}
 
-  /**
-   * Mutation to create a new Bunny Stream Collection and return its GUID.
-   */
-  @Mutation(() => String, { description: 'Create a new Bunny Stream collection' })
-  async createCollection(
-    @Args('input') input: CreateCollectionInput,
-  ): Promise<string> {
-    if (!input.name || input.name.trim().length === 0) {
-      throw new BadRequestException('Collection name must be provided');
-    }
-    return this.uploadService.createCollection(input.name.trim());
+  @Query(() => [Gallery], { description: 'Get all galleries' })
+  async galleries(): Promise<Gallery[]> {
+    return this.uploadService.findAllGalleries();
   }
 
-  /**
-   * Mutation to upload a video to a specific Bunny Stream Collection
-   * and persist in the Gallery document.
-   */
-  @Mutation(() => Gallery, { description: 'Upload a video to Bunny and save metadata' })
+  @Mutation(() => Gallery)
+  async createGallery(
+    @Args('name') name: string,
+  ): Promise<Gallery> {
+    return this.uploadService.createGallery(name);
+  }
+
+  @Mutation(() => Gallery)
   async uploadVideo(
     @Args('input') input: UploadVideoInput,
     @Args({ name: 'file', type: () => GraphQLUpload }) file: FileUpload,
   ): Promise<Gallery> {
-    const { createReadStream, filename, mimetype } = await file;
-
-    // Stream to buffer
+    const { createReadStream, filename, mimetype } = file;
     const chunks: Buffer[] = [];
-    await new Promise<void>((resolve, reject) => {
-      const stream = createReadStream();
-      stream.on('data', (chunk: Buffer) => chunks.push(chunk));
-      stream.on('end', resolve);
-      stream.on('error', reject);
+    await new Promise<void>((res, rej) => {
+      createReadStream()
+        .on('data', (c: Buffer) => chunks.push(c))
+        .on('end', () => res())
+        .on('error', (e) => rej(e));
     });
     const buffer = Buffer.concat(chunks);
 
-    const multerLikeFile = {
+    const multerFile = {
       buffer,
       originalname: filename,
       mimetype,
@@ -69,8 +56,8 @@ export class UploadResolver {
     } as Express.Multer.File;
 
     return this.uploadService.uploadToBunnyAndSave(
-      input.galleryId,
-      multerLikeFile,
+      input.galleryId.toString(),
+      multerFile,
       input.title ?? filename,
     );
   }

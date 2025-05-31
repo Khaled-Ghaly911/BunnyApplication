@@ -1,0 +1,44 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type VideoEntry {
+  videoId: String!
+  playbackUrl: String
+  thumbnailUrl: String
+  uploadedAt: DateTime
+  collectionId: String
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type Gallery {
+  _id: ID!
+  name: String!
+  videos: [VideoEntry!]!
+  collectionId: String
+}
+
+type Query {
+  """Get all galleries"""
+  galleries: [Gallery!]!
+}
+
+type Mutation {
+  createGallery(name: String!): Gallery!
+  uploadVideo(input: UploadVideoInput!, file: Upload!): Gallery!
+}
+
+input UploadVideoInput {
+  """MongoDB ObjectId of the Gallery to attach the video to"""
+  galleryId: String!
+
+  """Optional custom title for the uploaded video (defaults to filename)"""
+  title: String
+}
+
+"""The `Upload` scalar type represents a file upload."""
+scalar Upload

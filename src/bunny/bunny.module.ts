@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { UploadService } from './bunny.service';
-import { UploadResolver } from './bunny.resolver';
+import { GalleryResolver } from './bunny.resolver';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Gallery, GallerySchema } from './gallery.schema';
 
@@ -10,6 +10,6 @@ import { Gallery, GallerySchema } from './gallery.schema';
       { name: Gallery.name, schema: GallerySchema },  
     ])
   ],
-  providers: [UploadService, UploadResolver]
+  providers: [UploadService, GalleryResolver]
 })
 export class BunnyModule {}
